@@ -8,7 +8,7 @@
 #include "strenc.h"
 
 // Open file and return point to char containing file contents
-unsigned char *openFile(char *fileName) {
+unsigned char *openFile(char *fileName, size_t *len) {
 	size_t c = 0;
 	size_t size = 8;
 	unsigned char *buf = malloc(size);
@@ -26,42 +26,43 @@ unsigned char *openFile(char *fileName) {
 			}
 		}
 		buf[i] = c;
+		len++;
 	}
 
 	fclose(fp);
 	return buf;
 }
 
-unsigned char *genKey(unsigned char *pt) {
-	unsigned char *key = malloc(strlen((char *)pt));
+unsigned char *genKey(unsigned char *pt, size_t len) {
+	unsigned char *key = malloc(len);
 	srand(time(NULL));
 
 	// rand() should not normally be used for
 	// generating secure numbers, we do not care
 	// here
-	for (int i = 0; i < strlen((char *)pt); i++) {
+	for (int i = 0; i < len; i++) {
 		key[i] = rand();
 	}
 
 	return key;
 }
 
-unsigned char *xorCharArray(unsigned char *text, unsigned char *key) {
-	unsigned char *ft = malloc(strlen((char *)text));
+unsigned char *xorCharArray(unsigned char *text, unsigned char *key, size_t len) {
+	unsigned char *ft = malloc(len);
 
-	for (int i = 0; i < strlen((char *)text); i++) { // Xor pt & key
+	for (int i = 0; i < len; i++) { // Xor pt & key
 		ft[i] = text[i] ^ key[i];
 	}
 
 	return ft;
 }
 
-int printCStyleCharArray(unsigned char *text, unsigned char *key) {
+int printCStyleCharArray(unsigned char *text, unsigned char *key, size_t len) {
 	// Print text
-	printf("unsigned char text[%zu] = { ", strlen((char *)text));
-	for (int i = 0; i < strlen((char *)text); i++) {
+	printf("unsigned char text[%zu] = { ", len);
+	for (int i = 0; i < len; i++) {
 		printf("0x%02X", text[i]);
-		if ((i + 1) == strlen((char *)text)) {
+		if ((i + 1) == len) {
 			printf(" ");
 		} else {
 			printf(", ");
@@ -69,10 +70,10 @@ int printCStyleCharArray(unsigned char *text, unsigned char *key) {
 	}
 	printf("};\n");
 	// Print key
-	printf("unsigned char text_key[%zu] = { ", strlen((char *)key));
-	for (int i = 0; i < strlen((char *)key); i++) {
+	printf("unsigned char text_key[%zu] = { ", len);
+	for (int i = 0; i < len; i++) {
 		printf("0x%02X", key[i]);
-		if ((i + 1) == strlen((char *)key)) {
+		if ((i + 1) == len) {
 			printf(" ");
 		} else {
 			printf(", ");
@@ -83,9 +84,11 @@ int printCStyleCharArray(unsigned char *text, unsigned char *key) {
 }
 
 int main(int argc, char **argv) {
-	unsigned char *pt = malloc(sizeof(unsigned char));
-	unsigned char *key = malloc(sizeof(unsigned char));
-	unsigned char *ct = malloc(sizeof(unsigned char));
+	unsigned char *pt = NULL;
+	unsigned char *key = NULL;
+	unsigned char *ct = NULL;
+
+	size_t pt_len = 0;
 
 	// Setting up options
 	static const struct option long_options[] = {
@@ -114,31 +117,32 @@ int main(int argc, char **argv) {
 				printf("%s", usage);
 				exit(EXIT_SUCCESS);
 			case 'f':
-				if (strlen((char *)pt) != 0) { // Exit if string is already set
+				if (pt != NULL) { // Exit if string is already set
 					printf("Error string input already set\n");
 					exit(EXIT_FAILURE);
 				}
-				pt = openFile(optarg);
+				pt = openFile(optarg, &pt_len);
 				break;
 			case 's':
-				if (strlen((char *)pt) != 0) { // Exit if file is already set
+				if (pt != NULL) { // Exit if file is already set
 					printf("Error file input already set\n");
 					exit(EXIT_FAILURE);
 				}
-				pt = malloc(strlen(optarg));
-				strcpy((char *)pt, optarg);
+				pt_len = strlen(optarg);
+				pt = malloc(pt_len);
+				memcpy(pt, optarg, pt_len);
 				break;
 		}
 	}
-	if (strlen((char *)pt) == 0) { // Exit if plain text is not > len 0
+	if (pt == NULL) { // Exit if plain text is NULL
 		printf("Plain text has not been set\n");
 		exit(EXIT_FAILURE);
 	}
 
-	key = genKey(pt);
-	ct = xorCharArray(pt, key);
+	key = genKey(pt, pt_len);
+	ct = xorCharArray(pt, key, pt_len);
 
-	printCStyleCharArray(ct, key);
+	printCStyleCharArray(ct, key, pt_len);
 
 	// Freeing memory and returning
 	free(pt);
